@@ -3,97 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Belgian IPTV Playlist</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background-color: #f9f9f9;
-        }
-        h1 {
-            text-align: center;
-        }
-        .video-list {
-            list-style: none;
-            padding: 0;
-        }
-        .video-list li {
-            margin-bottom: 15px;
-        }
-        video {
-            width: 100%;
-            max-width: 600px;
-            height: auto;
-            border: 1px solid #ccc;
-            display: block;
-            margin-top: 5px;
-        }
-    </style>
+    <title>Dynamic HLS Streams</title>
 </head>
-<body>
-    <h1>Belgian IPTV Playlist</h1>
-    <ul class="video-list" id="videoList"></ul>
+<body id="main">
 
-    <!-- Include HLS.js from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<div id="video-container"></div>
 
-    <script>
-        // Function to fetch and parse the M3U file
-        async function loadPlaylist() {
-            const response = await fetch('https://iptv-org.github.io/iptv/countries/be.m3u');
-            const playlistText = await response.text();
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script>
+async function loadAndParseM3U(url) {
+    const response = await fetch(url);
+    const text = await response.text();
+    return text.split('\n').filter(line => line && !line.startsWith('#'));
+}
 
-            // Split the file by line breaks
-            const lines = playlistText.split('\n');
-            const videoListElement = document.getElementById('videoList');
+function createVideoElement(streamUrl, index) {
+    const videoContainer = document.getElementById('video-container');
+    const videoElement = document.createElement('video');
+    videoElement.id = 'video' + index;
+    videoElement.controls = true;
+    videoElement.width = 640;
+    videoElement.height = 360;
+    videoContainer.appendChild(videoElement);
 
-            let videoName = '';
-            lines.forEach(line => {
-                if (line.startsWith('#EXTINF')) {
-                    // Extract video name from the #EXTINF line
-                    const nameMatch = line.match(/,([^,]+)$/);
-                    if (nameMatch) {
-                        videoName = nameMatch[1].trim();
-                    }
-                } else if (line.startsWith('http')) {
-                    // Create a list item for the video
-                    const listItem = document.createElement('li');
-                    const videoUrl = line.trim();
-                    const isHLS = videoUrl.endsWith('.m3u8');
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(streamUrl);
+        hls.attachMedia(videoElement);
+    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+        videoElement.src = streamUrl;
+    } else {
+        console.error('HLS not supported');
+    }
+}
 
-                    // Determine how to render the video based on its type
-                    if (isHLS) {
-                        listItem.innerHTML = `
-                            <strong>${videoName}</strong>
-                            <video controls id="video${videoListElement.childElementCount}">
-                                Your browser does not support the video tag.
-                            </video>
-                        `;
-                        // Initialize HLS.js for this video
-                        const video = listItem.querySelector('video');
-                        if (Hls.isSupported()) {
-                            const hls = new Hls();
-                            hls.loadSource(videoUrl);
-                            hls.attachMedia(video);
-                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                            video.src = videoUrl;
-                        }
-                    } else {
-                        listItem.innerHTML = `
-                            <strong>${videoName}</strong>
-                            <video controls>
-                                <source src="${videoUrl}" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                        `;
-                    }
-                    videoListElement.appendChild(listItem);
-                }
-            });
-        }
+(async function() {
+    const m3uUrl = 'https://iptv-org.github.io/iptv/countries/be.m3u';
+    const streamUrls = await loadAndParseM3U(m3uUrl);
+    
+    streamUrls.forEach((streamUrl, index) => {
+        createVideoElement(streamUrl, index);
+    });
+})();
+</script>
 
-        // Load the playlist when the page is loaded
-        window.onload = loadPlaylist;
-    </script>
 </body>
 </html>

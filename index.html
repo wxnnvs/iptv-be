@@ -34,6 +34,9 @@
     <h1>Belgian IPTV Playlist</h1>
     <ul class="video-list" id="videoList"></ul>
 
+    <!-- Include HLS.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
     <script>
         // Function to fetch and parse the M3U file
         async function loadPlaylist() {
@@ -53,15 +56,37 @@
                         videoName = nameMatch[1].trim();
                     }
                 } else if (line.startsWith('http')) {
-                    // Create a list item with a video element
+                    // Create a list item for the video
                     const listItem = document.createElement('li');
-                    listItem.innerHTML = `
-                        <strong>${videoName}</strong>
-                        <video controls>
-                            <source src="${line.trim()}" type="application/x-mpegURL">
-                            Your browser does not support the video tag.
-                        </video>
-                    `;
+                    const videoUrl = line.trim();
+                    const isHLS = videoUrl.endsWith('.m3u8');
+
+                    // Determine how to render the video based on its type
+                    if (isHLS) {
+                        listItem.innerHTML = `
+                            <strong>${videoName}</strong>
+                            <video controls id="video${videoListElement.childElementCount}">
+                                Your browser does not support the video tag.
+                            </video>
+                        `;
+                        // Initialize HLS.js for this video
+                        const video = listItem.querySelector('video');
+                        if (Hls.isSupported()) {
+                            const hls = new Hls();
+                            hls.loadSource(videoUrl);
+                            hls.attachMedia(video);
+                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = videoUrl;
+                        }
+                    } else {
+                        listItem.innerHTML = `
+                            <strong>${videoName}</strong>
+                            <video controls>
+                                <source src="${videoUrl}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        `;
+                    }
                     videoListElement.appendChild(listItem);
                 }
             });

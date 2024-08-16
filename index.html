@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Belgian IPTV Playlist</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        .video-list {
+            list-style: none;
+            padding: 0;
+        }
+        .video-list li {
+            margin-bottom: 15px;
+        }
+        video {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 1px solid #ccc;
+            display: block;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Belgian IPTV Playlist</h1>
+    <ul class="video-list" id="videoList"></ul>
+
+    <script>
+        // Function to fetch and parse the M3U file
+        async function loadPlaylist() {
+            const response = await fetch('https://iptv-org.github.io/iptv/countries/be.m3u');
+            const playlistText = await response.text();
+
+            // Split the file by line breaks
+            const lines = playlistText.split('\n');
+            const videoListElement = document.getElementById('videoList');
+
+            let videoName = '';
+            lines.forEach(line => {
+                if (line.startsWith('#EXTINF')) {
+                    // Extract video name from the #EXTINF line
+                    const nameMatch = line.match(/,([^,]+)$/);
+                    if (nameMatch) {
+                        videoName = nameMatch[1].trim();
+                    }
+                } else if (line.startsWith('http')) {
+                    // Create a list item with a video element
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `
+                        <strong>${videoName}</strong>
+                        <video controls>
+                            <source src="${line.trim()}" type="application/x-mpegURL">
+                            Your browser does not support the video tag.
+                        </video>
+                    `;
+                    videoListElement.appendChild(listItem);
+                }
+            });
+        }
+
+        // Load the playlist when the page is loaded
+        window.onload = loadPlaylist;
+    </script>
+</body>
+</html>

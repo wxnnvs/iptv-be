@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic HLS Streams</title>
+    <title>Dynamic HLS Streams with Titles</title>
 </head>
 <body id="main">
 
@@ -14,24 +14,46 @@
 async function loadAndParseM3U(url) {
     const response = await fetch(url);
     const text = await response.text();
-    return text.split('\n').filter(line => line && !line.startsWith('#'));
+    const lines = text.split('\n');
+    const streams = [];
+
+    let title = '';
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('#EXTINF:')) {
+            title = line.split(',')[1] || 'Untitled Stream';
+        } else if (line && !line.startsWith('#')) {
+            streams.push({ title: title, url: line });
+        }
+    }
+    return streams;
 }
 
-function createVideoElement(streamUrl, index) {
+function createVideoElement(stream, index) {
     const videoContainer = document.getElementById('video-container');
+    
+    const streamWrapper = document.createElement('div');
+    streamWrapper.style.marginBottom = '20px';
+    
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = stream.title;
+    streamWrapper.appendChild(titleElement);
+    
     const videoElement = document.createElement('video');
     videoElement.id = 'video' + index;
     videoElement.controls = true;
     videoElement.width = 640;
     videoElement.height = 360;
-    videoContainer.appendChild(videoElement);
+    streamWrapper.appendChild(videoElement);
+    
+    videoContainer.appendChild(streamWrapper);
 
     if (Hls.isSupported()) {
         const hls = new Hls();
-        hls.loadSource(streamUrl);
+        hls.loadSource(stream.url);
         hls.attachMedia(videoElement);
     } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-        videoElement.src = streamUrl;
+        videoElement.src = stream.url;
     } else {
         console.error('HLS not supported');
     }
@@ -39,10 +61,10 @@ function createVideoElement(streamUrl, index) {
 
 (async function() {
     const m3uUrl = 'https://iptv-org.github.io/iptv/countries/be.m3u';
-    const streamUrls = await loadAndParseM3U(m3uUrl);
+    const streams = await loadAndParseM3U(m3uUrl);
     
-    streamUrls.forEach((streamUrl, index) => {
-        createVideoElement(streamUrl, index);
+    streams.forEach((stream, index) => {
+        createVideoElement(stream, index);
     });
 })();
 </script>
